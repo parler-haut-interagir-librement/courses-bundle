@@ -1,4 +1,4 @@
-<!-- phil-dev source-sha256=b3ed97bf1e3524e2d2706037a0199a6d446a10413e263d8a766e4c3dd5d714c8 -->
+<!-- phil-dev source-sha256=824c48bbfc9a32600c80f3083f52864764a7678df5aab4c6384c1d924dd3e569 -->
 # Points d'extension
 
 Le bundle est en versions `0.x` : les ports, les événements et les services ci-dessous peuvent changer dans une version
@@ -9,7 +9,7 @@ mineure, ce que dit le journal des modifications. Ils sont destinés à être st
 Un type d'activité, dans `Phil\CoursesBundle\Application\Contract` : le nom que garde une activité, les paramètres qu'il
 vérifie, si l'apprenant la marque terminée, et où l'apprenant va pour la suivre. Un service qui l'implémente est recueilli
 avec l'étiquette `phil_courses.activity_type`, ajoutée par la configuration automatique. Le bundle a `page`, `link`,
-`scorm` et `cmi5`.
+`scorm`, `cmi5` et `xapi`.
 
 ```php
 final readonly class WorkshopActivity implements ActivityType
@@ -65,6 +65,39 @@ reçoit des énoncés que le bundle a déjà vérifiés selon les règles de cmi
 pas conserver un énoncé lance `RecordStoreUnavailable` : le point de terminaison xAPI répond `503`, et un énoncé
 `satisfied` qu'il a refusé est émis de nouveau plus tard.
 
+Le module de vie privée lit et efface les énoncés et les documents d'état des inscriptions d'un apprenant dans
+`DbalLearningRecordStore`, avec `statementsOf()`, `statesOf()` et `erase()`. Avec `HttpLearningRecordStore`, dont
+`endpoint` nomme l'entrepôt distant, ou un adaptateur de l'application, une demande d'accès dit que cet entrepôt les
+conserve, et un effacement les signale comme survivants : voir [cmi5](cmi5.md#vie-privée).
+
+## `XapiPackageReader`
+
+Lit le `tincan.xml` d'un paquet xAPI dans un `XapiPackage` — l'IRI du cours, son titre et sa description, ses activités
+`XapiLaunchable` et les notes de la lecture —, ou lève `PackageRefused`. L'import demande le service nommé dans
+`phil_courses.import.xapi_reader` pour une archive qui contient `tincan.xml` et ni `cmi5.xml` ni `imsmanifest.xml`.
+C'est l'endroit étroit où se branche le lecteur de paquets xAPI d'une bibliothèque, par un adaptateur qui borne la
+lecture ; sans lecteur, les paquets xAPI sont refusés. Voir [activités xAPI](xapi-activities.md).
+
+## `AssigneeMembers`
+
+Les membres d'un groupe ou d'une unité d'une organisation à qui un cours est assigné : `supports(AssigneeKind $kind)` et
+`members(AssigneeKind $kind, string $assignee)`, les identifiants stables des apprenants, lus paresseusement. Configuré
+automatiquement avec l'étiquette `phil_courses.assignee_members` ; le premier service qui prend en charge un type
+répond. Voir [formation obligatoire](mandatory-training.md#groupes-et-unités).
+
+## `TrainingNotifier`
+
+Avertit une personne d'un cours assigné : `notify(TrainingNotice $notice, string $recipient, Obligation $obligation)`.
+`NotificationsTrainingNotifier` envoie une notification de phil/notifications-bundle, avec des identifiants seulement,
+quand ce bundle est enregistré ; une application nomme le sien dans `phil_courses.training.notifier`.
+
+## `AssignmentRepository` et `TranscriptRepository`
+
+Les entrepôts des assignations et des obligations, et des relevés et des crédits, des alias de leurs ports vers
+`DbalAssignmentRepository` et `DbalTranscriptRepository`. `AssignmentRepository::actionable()` lit les obligations sur
+lesquelles une exécution agit une page à la fois, après la clé de la dernière de la page précédente ; `removeOf()` sur
+les deux sert le module de vie privée.
+
 ## `PackageOpener` et `PackageArchive`
 
 L'ouverture d'un paquet en lecture : les contrats de phil/elearning-packages. `ZipPackageOpener` lit les archives ZIP par
@@ -92,20 +125,24 @@ l'inscription qui l'a terminé, ou null. Un identifiant que ce bundle ne peut pa
 Les URL absolues du point de terminaison xAPI et de l'URL de récupération d'une session. `RoutedCmi5Endpoints` les génère
 à partir des routes de `config/cmi5_routes.php`.
 
-## `CourseRepository` et `EnrollmentRepository`
+## `CourseRepository`, `EnrollmentRepository` et `LaunchSessionRepository`
 
 Les entrepôts des cours et des inscriptions, des alias de leurs ports vers les entrepôts DBAL. `CourseRepository` conserve
-les blocs d'un cours cmi5 avec `saveBlock()` et `blocks()` ; `EnrollmentRepository` note les énoncés `satisfied` qu'une
+les blocs d'un cours cmi5 avec `saveBlock()` et `blocks()` ; `LaunchSessionRepository` donne et retire les sessions de lancement cmi5 des
+inscriptions avec `ofEnrollments()` et `removeOfEnrollments()`, pour le module de vie privée ;
+`EnrollmentRepository` note les énoncés `satisfied` qu'une
 inscription a avec `satisfactions()`, `claimSatisfaction()` — qui répond false quand la satisfaction était déjà notée,
-de sorte que deux requêtes simultanées émettent un seul énoncé — et `releaseSatisfaction()`. Une application qui
-remplace un entrepôt les implémente.
+de sorte que deux requêtes simultanées émettent un seul énoncé — et `releaseSatisfaction()`, et oublie la
+progression d'une inscription qui recommence avec `removeProgresses()`. Une application qui remplace un entrepôt les
+implémente.
 
 ## `ScormAttemptRepository`
 
 L'endroit où sont conservées les tentatives SCORM et leurs données de suivi : `save()`, `find()`, `latest()` — la dernière
 tentative de l'apprenant à une activité —, `ofEnrollments()` et `removeOfEnrollments()`, par lesquels le module de vie
-privée lit et efface. `DbalScormAttemptRepository` les conserve par DBAL ; une application qui les conserve ailleurs fait
-de l'alias du port son propre service.
+privée lit et efface. `DbalScormAttemptRepository` les conserve par DBAL, avec les secondes qu'ont duré les sessions de chaque tentative
+selon l'horloge du serveur ; une application qui les conserve ailleurs fait de l'alias du port son propre service, et
+conserve `elapsed` et `sessionOpenedAt`, d'où sont comptées les limites de temps.
 
 ## Événements
 
@@ -113,13 +150,16 @@ Les événements du [modèle de cours](course-model.md#événements) sont envoy�
 des identifiants : un écouteur lit le reste dans les entrepôts. Un écouteur envoie le rappel d'une ouverture, décerne un
 certificat à `CourseCompleted`, prévient un enseignant d'un `RetryRequested`, ou suit le parcours d'un apprenant dans les
 blocs d'un cours cmi5 à `BlockSatisfied`. `ScormSessionEnded` est envoyé à la fin de chaque session d'une activité SCORM,
-avec l'indication que sa tentative a pris fin ou non.
+avec l'indication que sa tentative a pris fin ou non. La formation obligatoire envoie `TrainingAssigned`,
+`ObligationOverdue`, `ObligationRenewed`, `EnrollmentRenewed` et `CreditsGranted` ; voir
+[formation obligatoire](mandatory-training.md#événements).
 
 ## Services
 
 Chaque point d'entrée est un service public nommé par sa classe : `Courses`, `Enrollments`, `Availabilities`,
 `Learning`, `Completions`, `SecondChances`, `CourseImporter`, `ResultImporter`, `Cmi5Statements`, `Cmi5Tokens`,
-`Cmi5Launcher`, `ActivityTypes`, `ScormRuntime`, `ScormTokens`, et les contrôleurs des pages, dont
-`SecondChancesController`, `ScormController` et `ScormFrameController`.
+`Cmi5Launcher`, `ActivityTypes`, `ScormRuntime`, `ScormTokens`, `XapiLauncher`, `XapiStatements`, `Assignments`, `Transcripts`, `TrainingRun`, et les
+contrôleurs des pages, dont `SecondChancesController`, `ScormController`, `ScormFrameController` et
+`TrainingController`.
 Les entrepôts sont des alias de leurs ports : `CourseRepository`, `EnrollmentRepository`, `RetryRequestRepository`,
-`LaunchSessionRepository`, `ScormAttemptRepository`.
+`LaunchSessionRepository`, `ScormAttemptRepository`, `AssignmentRepository`, `TranscriptRepository`.

@@ -80,8 +80,13 @@ own frame and the content origin only. The state holds the learner's identifier,
 A commit carries an attempt token — the attempt, the session and an expiry, signed by an HMAC under
 `phil_courses.scorm.secret`, nothing secret kept in the database — and the stateless CSRF token of the forms: the
 browser's `Sec-Fetch-Site`, `Origin` or `Referer` must say it comes from the site. A token of another learner signed in,
-of an earlier session, or expired is refused. The body is bounded at 2 MiB, a commit at 4 000 values, the data of an
-attempt at 1 MiB, each value by the data model of its element.
+of an earlier session, or expired is refused, and so is any commit to an ended attempt: an attempt opened for review
+is given no token, and what its content writes is never sent. The body is bounded at 2 MiB, a commit at 4 000 values,
+the data of an attempt at 1 MiB, each value by the data model of its element.
+
+A time limit is held by the server's clock, never by the browser's nor by the session time the content reports: a page
+that stops its timer, or a content that lies about its time, still sees its attempt end at the deadline, and a commit
+later than 30 seconds past it is not kept.
 
 ## The cmi5 endpoint
 
@@ -89,6 +94,16 @@ The xAPI endpoint answers a request carrying the token of an open session only, 
 registration and activity. The token is fetched once. Cross-origin requests are answered for the content origin and
 `cmi5.allowed_origins`, never for any origin. A statement breaking a rule of cmi5 is refused before it reaches the
 learning record store, and the learners are named by account, never by e-mail address.
+
+## The xAPI activities
+
+An xAPI activity's token is handed to the content in the launch URL, as xAPI packages expect, rather than through a
+fetch URL: it opens its own session only, until the session is abandoned by the next launch or expires after
+`cmi5.session_ttl` seconds, and the content origin answers with `Referrer-Policy: no-referrer`, so that the URL does
+not leave in a `Referer`. A statement is kept only for the learner of the session, named by the same account, with the
+session's registration; a statement that voids another is refused, so that a recorded outcome stays. The import of an
+xAPI package reads `tincan.xml` through the configured reader only, which bounds its reading; without one, the
+package is refused.
 
 ## The remote learning record store
 
@@ -99,6 +114,14 @@ credentials to the endpoint's origin only. Neither the log nor the exceptions na
 learner, the credentials or what the store answered: they name the statement's identifier and the status. The state
 documents of the units stay in the application's database and are never sent to the remote store. A store on a private
 network is refused, as [cmi5](cmi5.md#the-limits-of-the-remote-store) explains.
+
+## The training and the transcripts
+
+The training and transcript pages show the learner signed in their own records only; the managers' pages ask for the
+role of `phil_courses.training.manager_role`, and are refused without an authorization checker or without a person
+signed in. Every answer is `no-store`. The CSV export prefixes a cell a spreadsheet would read as a formula with a
+quote, and is sent as an attachment with `nosniff`. The notifications of the training carry identifiers only. An
+assignment reaches a bounded number of members, and a run reads the obligations a batch at a time.
 
 ## The administration page
 

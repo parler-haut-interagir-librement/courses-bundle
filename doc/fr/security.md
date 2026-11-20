@@ -1,4 +1,4 @@
-<!-- phil-dev source-sha256=b6cb7c85f33381bb9a1805c7e4efc13014d71822d9c1c12e76fbdb5ea5656e1c -->
+<!-- phil-dev source-sha256=55679662119c112b588a11f69e8a9fb5941366ac2e450209481b3eaf3151abdc -->
 # Sécurité
 
 Un paquet vient d'une autre plateforme, et ses fichiers contiennent des scripts que personne sur ce site n'a écrits.
@@ -87,8 +87,14 @@ jamais un nom ni une adresse courriel.
 Une validation porte un jeton de tentative — la tentative, la session et une expiration, signées par un HMAC sous
 `phil_courses.scorm.secret`, rien de secret conservé dans la base de données — et le jeton CSRF sans état des formulaires :
 le `Sec-Fetch-Site`, l'`Origin` ou le `Referer` du navigateur doit dire qu'elle vient du site. Un jeton d'un autre
-apprenant connecté, d'une session antérieure, ou expiré est refusé. Le corps est borné à 2 Mio, une validation à 4 000
-valeurs, les données d'une tentative à 1 Mio, chaque valeur par le modèle de données de son élément.
+apprenant connecté, d'une session antérieure, ou expiré est refusé, tout comme toute validation d'une tentative terminée : une tentative
+ouverte en révision ne reçoit aucun jeton, et ce que son contenu écrit n'est jamais envoyé. Le corps est borné à 2 Mio,
+une validation à 4 000 valeurs, les données d'une tentative à 1 Mio, chaque valeur par le modèle de données de son
+élément.
+
+Une limite de temps est tenue par l'horloge du serveur, jamais par celle du navigateur ni par le temps de session que le
+contenu rapporte : une page qui arrête son minuteur, ou un contenu qui ment sur son temps, voit tout de même sa
+tentative prendre fin à l'échéance, et une validation postérieure de plus de 30 secondes n'est pas conservée.
 
 ## Le point de terminaison cmi5
 
@@ -97,6 +103,16 @@ l'acteur, l'enregistrement et l'activité de cette session. Le jeton est récup�
 croisée reçoivent une réponse pour l'origine du contenu et `cmi5.allowed_origins`, jamais pour une origine quelconque.
 Un énoncé qui enfreint une règle de cmi5 est refusé avant d'atteindre l'entrepôt de traces d'apprentissage, et les
 apprenants sont nommés par compte, jamais par adresse courriel.
+
+## Les activités xAPI
+
+Le jeton d'une activité xAPI est remis au contenu dans l'URL de lancement, comme les paquets xAPI s'y attendent, plutôt
+que par une URL de récupération : il n'ouvre que sa propre session, jusqu'à ce que le lancement suivant l'abandonne ou
+qu'elle expire après `cmi5.session_ttl` secondes, et l'origine du contenu répond avec `Referrer-Policy: no-referrer`,
+pour que l'URL ne parte pas dans un `Referer`. Un énoncé n'est conservé que pour l'apprenant de la session, nommé par le
+même compte, avec l'enregistrement de la session ; un énoncé qui en annule un autre est refusé, pour qu'un résultat
+enregistré demeure. L'import d'un paquet xAPI lit `tincan.xml` par le lecteur configuré seulement, qui borne sa lecture ;
+sans lecteur, le paquet est refusé.
 
 ## L'entrepôt de traces d'apprentissage distant
 
@@ -108,6 +124,15 @@ nomment un énoncé, un enregistrement, un apprenant, les identifiants de connex
 nomment l'identifiant de l'énoncé et le statut. Les documents d'état des unités restent dans la base de données de
 l'application et ne sont jamais envoyés à l'entrepôt distant. Un entrepôt sur un réseau privé est refusé, comme
 l'explique [cmi5](cmi5.md#les-limites-de-lentrepôt-distant).
+
+## La formation et les relevés
+
+Les pages de formation et de relevé ne montrent à l'apprenant connecté que ses propres enregistrements ; les pages des
+gestionnaires demandent le rôle de `phil_courses.training.manager_role`, et sont refusées sans vérificateur
+d'autorisation ou sans personne connectée. Chaque réponse est `no-store`. L'exportation CSV précède d'une apostrophe
+une cellule qu'un tableur lirait comme une formule, et est envoyée en pièce jointe avec `nosniff`. Les
+notifications de la formation ne portent que des identifiants. Une assignation joint un nombre borné de membres, et une
+exécution lit les obligations un lot à la fois.
 
 ## La page d'administration
 

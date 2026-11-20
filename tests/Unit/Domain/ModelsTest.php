@@ -355,6 +355,7 @@ final class ModelsTest extends TestCase
         self::assertSame(CourseOrigin::Scorm12, CourseOrigin::of(PackageFormat::Scorm12));
         self::assertSame(CourseOrigin::Scorm2004, CourseOrigin::of(PackageFormat::Scorm2004));
         self::assertSame(CourseOrigin::Cmi5, CourseOrigin::of(PackageFormat::Cmi5));
+        self::assertSame(CourseOrigin::Xapi, CourseOrigin::of(PackageFormat::Xapi));
     }
 
     /**

@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use Phil\CoursesBundle\Application\Scorm\ScormRuntime;
+use Phil\CoursesBundle\Infrastructure\Doctrine\CourseTables;
+use Phil\CoursesBundle\Infrastructure\Doctrine\DbalScormAttemptRepository;
+
 /*
  * What phil/dev-tools reads of this package: its paths and its exceptions to the shared configurations.
  */
@@ -20,12 +24,15 @@ return [
             'UnwrapRtrim' => ['ignoreSourceCodeByRegex' => ['.*rtrim\\(\\$directory, \'/\'\\).*']],
             // The columns of a primary key are never null, whatever they are declared; `isset` is true for a key whose value
             // is `false`, and the walk and the holding blocks only need the keys.
-            'TrueValue' => ['ignoreSourceCodeByRegex' => [
+            'TrueValue' => ['ignore' => [
+                // The learner of an obligation is a column of its primary key, which the schema makes not null.
+                CourseTables::class.'::tables::315',
+            ], 'ignoreSourceCodeByRegex' => [
                 '.*self::column\\(\'(activity_hash|state_id)\'.*',
                 '.*\\$(seen|holding)\\[\\$block\\] = true;.*',
+                // The activities with an ended attempt are read by their keys: the value only marks them.
+                '.*\\$activities\\[\\$attempt->activity->value\\] = true;.*',
             ]],
-            // Depths counted by two instead of one keep the order of the blocks: only their differences count.
-            'IncrementInteger' => ['ignoreSourceCodeByRegex' => ['.*\\(\\$depths\\[\\$parent\\] \\?\\? 0\\) \\+ 1.*']],
             // The configuration refuses a service and a remote store together: the first one named is the only one.
             'Coalesce' => ['ignoreSourceCodeByRegex' => ['.*\\$config\\[\'cmi5\'\\]\\[\'lrs\'\\] \\?\\? self::remoteStore.*']],
             // The driver gives text for a text column: the cast is for the types only.
@@ -39,10 +46,16 @@ return [
             // An offset below zero reads as zero, the default included.
             'DecrementInteger' => ['ignoreSourceCodeByRegex' => [
                 '.*public function all\\(int \\$limit = 50, int \\$offset = 0\\).*',
+                // The pages are read with an offset of zero at least; SQLite reads a negative one as zero, MySQL and PostgreSQL refuse it.
+                '.*max\\(1, \\$limit\\)\\.. OFFSET .\\.max\\(0, \\$offset\\).*',
                 // A commit holds a body of three levels at most: a deeper limit only decides which of two refusals comes first.
                 '.*json_decode\\(\\$json, true, 4, .*',
             ]],
-            'IncrementInteger' => ['ignoreSourceCodeByRegex' => ['.*json_decode\\(\\$json, true, 4, .*']],
+            'IncrementInteger' => ['ignoreSourceCodeByRegex' => [
+                '.*json_decode\\(\\$json, true, 4, .*',
+                // Depths counted by two instead of one keep the order of the blocks: only their differences count.
+                '.*\\(\\$depths\\[\\$parent\\] \\?\\? 0\\) \\+ 1.*',
+            ]],
             // A score equal to the best kept is the same score.
             'GreaterThan' => ['ignoreSourceCodeByRegex' => [
                 '.*\\$outcome->score->scaled > \\$this->score->scaled.*',
@@ -58,21 +71,26 @@ return [
             'FalseValue' => ['ignoreSourceCodeByRegex' => ['.*is_bool\\(\\$body\\[.finish.\\] \\?\\? false\\).*']],
             // No enrollment asks for no row, and the query of an empty list reads none either.
             'ReturnRemoval' => ['ignore' => [
-                'Phil\\CoursesBundle\\Infrastructure\\Doctrine\\DbalScormAttemptRepository::ofEnrollments::90',
+                DbalScormAttemptRepository::class.'::ofEnrollments::94',
                 // A target no activity has leaves for the outline, as the line after the branch does.
-                'Phil\\CoursesBundle\\Application\\Scorm\\ScormRuntime::navigation::192',
+                ScormRuntime::class.'::navigation::316',
             ]],
-            // The modules are appended, or replaced at their place: their keys follow each other already. The list is
-            // kept for the types.
-            'UnwrapArrayValues' => ['ignoreSourceCodeByRegex' => ['.*array_values\\(\\$modules\\).*']],
+            'UnwrapArrayValues' => ['ignoreSourceCodeByRegex' => [
+                // The modules are appended, or replaced at their place: their keys follow each other already. The list is
+                // kept for the types.
+                '.*array_values\\(\\$modules\\).*',
+                // The driver expands a list parameter by its values, whatever the keys of the list: the names a variadic call may give.
+                '.*return array_values\\(array_map\\(static fn \\(EnrollmentId \\$id\\): string => \\$id->value, \\$enrollments\\)\\);.*',
+            ]],
         ],
     ],
     'fuzz' => [
-        // The checks of the cmi5 statements and the body of a SCORM commit on bytes nobody wrote, from the seeds of
+        // The checks of the cmi5 and xAPI statements and the body of a SCORM commit on bytes nobody wrote, from the seeds of
         // tests/Fuzz/corpus/<target>.
         'targets' => [
             'cmi5-statement' => 'tests/Fuzz/cmi5-statement.php',
             'scorm-commit' => 'tests/Fuzz/scorm-commit.php',
+            'xapi-statement' => 'tests/Fuzz/xapi-statement.php',
         ],
     ],
     'docs' => [
