@@ -4,6 +4,75 @@ All notable changes to `phil/courses-bundle` will be documented in this file.
 
 Updates should follow the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
+## 0.3.0-alpha - 2026-11-24
+
+XAPI packages are imported through the reader of phil/elearning-packages, courses
+follow each other in learning paths, and one training given in several languages forms a group of equivalent courses. A
+minor version and not a patch: five tables are added, and `Completions` answers the completion of an equivalent course
+and takes `Equivalences` as its second argument.
+
+### Added
+
+- `ElearningXapiPackageReader`, the reader of xAPI packages on the `XapiCourseReader` of phil/elearning-packages: the
+  `tincan.xml` of the archive read within the limits of the import, the IRI, title and description of the course
+  activity in the language of the import, the launchable activities in the order of the package, the notes of the
+  reading as the warnings of the import, its refusals as `PackageRefused`.
+- Learning paths: `LearningPaths`, an ordered sequence of courses, each step required or not and waiting for courses
+  placed before it — 100 steps and 50 prerequisites a step at most —, added at the end or before another step, removed
+  from the path and from the prerequisites of the others; `enroll()`, which enrolls the learner in the path once, then
+  in each course whose prerequisites they completed; `progress()`, with `PathProgress`, `StepStatus` and `StepState`;
+  `advance()` and `completion()`. `PathCompletions` advances the learner's open enrollments in the paths that hold a
+  course at each `CourseCompleted`, and completes a path once its required steps are.
+- `LearningPath`, `PathStep`, `PathEnrollment`, `LearningPathId`, `PathEnrollmentId`, the events
+  `LearnerEnrolledInPath` and `PathCompleted`, the port `LearningPathRepository` and `DbalLearningPathRepository`, with
+  the tables `phil_course_path`, `phil_course_path_step` and `phil_course_path_enrollment`.
+- `CertificatesCourseCompletions` answers a completion source `path:<identifier>` with the learner's enrollment in the
+  completed path.
+- `PathsPrivacy`: a learner's enrollments in paths in the access and erasure requests of phil/privacy-bundle, under the
+  module `courses_paths`.
+- Groups of equivalent courses: `Equivalences`, one course per language in a group — 50 courses at most, a course in
+  one group at most —, `equivalents()` and `courseFor()`, the course of the learner's language by its tag, then by its
+  primary language; `EquivalenceGroup`, `EquivalentCourse`, `EquivalenceGroupId`, `LanguageTag`, the port
+  `EquivalenceRepository` and `DbalEquivalenceRepository`, with the tables `phil_course_equivalence` and
+  `phil_course_equivalent`.
+- The outline lists the other courses of the course's group, and the route `phil_courses_language`,
+  `GET /{course}/language`, redirects to the course of the request's locale; the translation `outline.equivalents` in
+  English and French.
+- The documentation pages learning paths and equivalent courses.
+
+### Changed
+
+- An xAPI package is imported through `ElearningXapiPackageReader` when `phil_courses.import.xapi_reader` is null; a
+  service named there replaces it.
+- `Completions::completion()` answers, for a learner who did not complete the course itself, the earliest completion of
+  an equivalent course; `Completion::$course` names the course completed. `Completions` takes `Equivalences` as its
+  second argument.
+- The completion of a course completes the obligations under its equivalent courses too, and a member reached by an
+  assignment who completed an equivalent course starts completed; `Assignments` takes `Equivalences` as its last
+  argument.
+- A course without credits of its own grants those of the first course of its group, and a completion that fulfils no
+  obligation while the transcript holds an equivalent course enters it without credits; `Transcripts` takes
+  `Equivalences` as its last argument.
+- Removing a course removes its steps in the learning paths and its place in a group of equivalent courses.
+- The bundle is tested with phil/notifications-bundle 0.2 and 0.3.
+- `CertificatesCourseCompletions` and `CourseController` take `LearningPaths` and `Equivalences` as their last
+  argument.
+- Upgrade: `CourseTables::upgrade()` creates the five tables of the learning paths and the equivalent courses; with the
+  ORM, `doctrine:migrations:diff` writes the same migration. An application that implements `CourseRepository` removes
+  the steps and the group membership of a removed course.
+- The development requirements accept `phil/notifications-bundle` 0.3, `phil/privacy-bundle` 0.3 and `phil/safe-http`
+  0.2, the minor versions of their main branches and no earlier one, so that the package installs on its own beside those
+  packages.
+- Requires the latest minor of each dependency (`doctrine/dbal` 4.6, `phil/elearning-packages` 0.2), and of each
+  development requirement (`doctrine/orm` 3.8, `doctrine/doctrine-bundle` 3.4, `twig/twig` 3.31,
+  `symfony/ux-twig-component` 3.8, …). The dates of a row are read through the type provider of the connection, as
+  DBAL 4.6 asks, instead of the static `Type::getType()`.
+
+### Fixed
+
+- `phil/elearning-packages` 0.2 is accepted beside 0.1: the package did not install beside the version published on
+  2026-11-20.
+
 ## 0.2.0-alpha - 2026-11-20
 
 An ended SCORM attempt opens for review, the time allowed is enforced on the server,
