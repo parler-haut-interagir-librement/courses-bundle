@@ -4,6 +4,21 @@ All notable changes to `phil/courses-bundle` will be documented in this file.
 
 Updates should follow the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
+## 0.3.1-alpha - 2026-11-25
+
+### Changed
+
+- The development requirements take `twig/twig` 3.31.1 or later, which fixes the advisories of its sandbox published on
+  2026-11-24.
+- The development requirements accept `phil/certificates-bundle` 0.3, `phil/notifications-bundle` 0.4 and `phil/ux-kit`
+  0.6, the minor versions of their main branches and no earlier one, so that the package installs on its own beside
+  those packages.
+
+### Fixed
+
+- The transcript page: the header cell of each row of totals, "Total", covers the first column only, the second
+  cell is empty, so that no header cell of the table spans two columns.
+
 ## 0.3.0-alpha - 2026-11-24
 
 XAPI packages are imported through the reader of phil/elearning-packages, courses
@@ -72,6 +87,14 @@ and takes `Equivalences` as its second argument.
 
 - `phil/elearning-packages` 0.2 is accepted beside 0.1: the package did not install beside the version published on
   2026-11-20.
+
+### Security
+
+- The SCORM attempt tokens and the cmi5 session tokens were the HMAC under `scorm.secret` and `cmi5.secret`
+  themselves, `%kernel.secret%` by default, which other bundles keyed their own hashes with. `ScormTokens` and
+  `Cmi5Tokens` derive their keys by HKDF-SHA256 under `phil_courses.scorm_token` and `phil_courses.cmi5_token`
+  (`ScormTokens::USAGE`, `Cmi5Tokens::USAGE`). A session open at the update loses its token: the learner launches the
+  unit again.
 
 ## 0.2.0-alpha - 2026-11-20
 
