@@ -14,8 +14,10 @@ use ShipMonk\ComposerDependencyAnalyser\Config\ErrorType;
  * for the trail of the second chances, phil/certificates-bundle for the adapter of its CourseCompletions port, and
  * phil/safe-http, with the PSR-3 logger it reports to, for the remote learning record store, phil/privacy-bundle for
  * the SCORM attempts, the cmi5 and xAPI records and the training in the access and erasure requests,
- * phil/notifications-bundle for the reminders of the mandatory training, and Symfony Messenger and Scheduler for their
- * schedule.
+ * phil/notifications-bundle for the reminders of the mandatory training, Symfony Messenger and Scheduler for their
+ * schedule, phil/organizations-bundle for the units the catalogues are shown to, phil/commerce-bundle and phil/money
+ * for the courses the catalogues sell, ext-intl and symfony/intl to write their prices, and phil/reporting-bundle for
+ * the training source of its reports.
  */
 return new Configuration()
     ->addPathToScan(__DIR__.'/src', isDev: false)
@@ -24,14 +26,20 @@ return new Configuration()
         'doctrine/orm',
         'phil/audit-bundle',
         'phil/certificates-bundle',
+        'phil/commerce-bundle',
+        'phil/money',
         'phil/notifications-bundle',
+        'phil/organizations-bundle',
         'phil/privacy-bundle',
+        'phil/reporting-bundle',
         'phil/safe-http',
         'psr/log',
         'symfony/console',
+        'symfony/intl',
         'symfony/messenger',
         'symfony/scheduler',
         'symfony/security-core',
         'symfony/security-csrf',
         'twig/twig',
-    ], [ErrorType::DEV_DEPENDENCY_IN_PROD]);
+    ], [ErrorType::DEV_DEPENDENCY_IN_PROD])
+    ->ignoreErrorsOnExtension('ext-intl', [ErrorType::DEV_DEPENDENCY_IN_PROD]);

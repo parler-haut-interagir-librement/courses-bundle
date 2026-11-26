@@ -78,12 +78,57 @@ named in `phil_courses.import.xapi_reader` for an archive that holds `tincan.xml
 An application names its own service to read the packages of a tool that phil/elearning-packages does not read. See
 [xAPI activities](xapi-activities.md#importing-an-xapi-package).
 
-## `LearningPathRepository` and `EquivalenceRepository`
+## `LearningPathRepository`, `EquivalenceRepository` and `CatalogueRepository`
 
-The stores of the learning paths, their steps and their enrollments, and of the groups of equivalent courses, aliased
-by their ports to `DbalLearningPathRepository` and `DbalEquivalenceRepository`, public, so that an application
-replaces them by aliasing the port to its own service. See [learning paths](learning-paths.md) and
-[equivalent courses](equivalent-courses.md).
+The stores of the learning paths, their steps and their enrollments, of the groups of equivalent courses, and of the
+catalogues and their entries, aliased by their ports to `DbalLearningPathRepository`, `DbalEquivalenceRepository` and
+`DbalCatalogueRepository`, public, so that an application replaces them by aliasing the port to its own service. See
+[learning paths](learning-paths.md), [equivalent courses](equivalent-courses.md) and [catalogues](catalogues.md).
+
+## `LearnerUnits`
+
+The units of an organization whose catalogues reach a learner — the units they belong to and the units above them —,
+in `Phil\CoursesBundle\Application\Contract`: `units(LearnerId $learner)`, a list of opaque unit identifiers, the
+ones a unit catalogue names. With phil/organizations-bundle registered, `OrganizationsLearnerUnits` answers it from
+`UnitTree::unitIdsOf()` in each organization the learner is a member of, the units above included unless
+`phil_courses.catalogues.units_below` is false; an application names its own service in
+`phil_courses.catalogues.learner_units`. Without one, the learners see the public catalogues only. See
+[Catalogues](catalogues.md#public-and-unit-catalogues).
+
+## `TrainingCosts` and `TrainingUnits`
+
+What the [training reports](training-reports.md) of phil/reporting-bundle read of a completion besides its hours, in
+`Phil\CoursesBundle\Application\Contract`: `TrainingCosts::cost(TranscriptEntry $entry)`, a `TrainingCost` in minor
+units of `phil_courses.reporting.currency`, named in `phil_courses.reporting.costs`; and
+`TrainingUnits::unitOf(LearnerId $learner)`, the identifier of the learner's unit or `null`, named in
+`phil_courses.reporting.units`. With phil/organizations-bundle registered, `OrganizationsTrainingUnits` answers the
+second from `UnitTree::unitIdsOf()`. `Infrastructure\Reporting\CoursesTrainingSource` is the `TrainingSource` of
+phil/reporting-bundle that reads them; an application aliases that port to a service of its own to replace it.
+
+## `CourseCheckout`
+
+Where a learner pays for a course a catalogue sells: `checkout(CatalogueEntry $entry, LearnerId $learner)` adds
+`$entry->sellable()` to the learner's cart and answers an address of the site itself, which the page redirects to; an
+address of another site is refused. The application implements it on its store — with phil/commerce-bundle, an order
+whose customer is the learner's identifier — and names it in `phil_courses.catalogues.checkout`. See
+[Catalogues](catalogues.md#courses-sold-through-philcommerce-bundle).
+
+```php
+final readonly class StoreCheckout implements CourseCheckout
+{
+    public function __construct(private Carts $carts, private OrderModifier $orders, private ClockInterface $clock, private UrlGeneratorInterface $urls) {}
+
+    public function checkout(CatalogueEntry $entry, LearnerId $learner): string
+    {
+        $cart = $this->carts->of($learner->value);
+        $this->orders->add($cart, SellableReference::fromValue($entry->sellable()), 1, PricingContext::of(1, $this->clock->now()));
+
+        return $this->urls->generate('app_cart');
+    }
+}
+```
+
+`Carts` is the application's: the store keeps no cart of its own for a customer.
 
 ## `AssigneeMembers`
 
@@ -102,8 +147,9 @@ is registered; an application names its own in `phil_courses.training.notifier`.
 
 The stores of the assignments and obligations, and of the transcripts and credits, aliased by their ports to
 `DbalAssignmentRepository` and `DbalTranscriptRepository`. `AssignmentRepository::actionable()` reads the obligations a
-run acts on a page at a time, after the key of the last one of the page before; `removeOf()` on both serves the
-privacy module.
+run acts on a page at a time, after the key of the last one of the page before; `TranscriptRepository::completedBetween()`
+reads the completions of every learner in a span of time row by row, the oldest first, for the training reports;
+`removeOf()` on both serves the privacy module.
 
 ## `PackageOpener` and `PackageArchive`
 
@@ -169,7 +215,9 @@ The learning paths dispatch `LearnerEnrolledInPath` and `PathCompleted`; see [le
 Every entry point is a public service named by its class: `Courses`, `Enrollments`, `Availabilities`, `Learning`,
 `Completions`, `SecondChances`, `CourseImporter`, `ResultImporter`, `Cmi5Statements`, `Cmi5Tokens`, `Cmi5Launcher`,
 `ActivityTypes`, `ScormRuntime`, `ScormTokens`, `XapiLauncher`, `XapiStatements`, `Assignments`, `Transcripts`,
-`TrainingRun`, and the controllers of the pages, `SecondChancesController`, `ScormController`, `ScormFrameController`
-and `TrainingController` among them.
+`TrainingRun`, `LearningPaths`, `Equivalences`, `Catalogues`, and the controllers of the pages,
+`SecondChancesController`, `ScormController`, `ScormFrameController`, `TrainingController` and `CatalogueController`
+among them.
 The stores are aliased by their ports: `CourseRepository`, `EnrollmentRepository`, `RetryRequestRepository`,
-`LaunchSessionRepository`, `ScormAttemptRepository`, `AssignmentRepository`, `TranscriptRepository`.
+`LaunchSessionRepository`, `ScormAttemptRepository`, `AssignmentRepository`, `TranscriptRepository`,
+`LearningPathRepository`, `EquivalenceRepository`, `CatalogueRepository`.

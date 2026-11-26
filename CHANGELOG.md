@@ -4,6 +4,62 @@ All notable changes to `phil/courses-bundle` will be documented in this file.
 
 Updates should follow the [Keep a CHANGELOG](https://keepachangelog.com/) principles.
 
+## 0.4.0-alpha - 2026-11-26
+
+### Added
+
+- The SCORM run time answers whether a choice or a jump to a target is valid: `adl.nav.request_valid.choice.{target=…}`
+  and `adl.nav.request_valid.jump.{target=…}` read `true` for an item an activity of the course was imported from, and
+  `false` for any other target. The page hands the content the targets of the first 500 such activities,
+  `ScormRuntime::MAX_TARGETS`, with the session; they are never kept with the attempt.
+- The responses of `fill-in`, `long-fill-in` and `performance` interactions are checked by their format, in the browser
+  and on the server, by the data model of phil/elearning-packages.
+- A statement of another verb than `completed`, `passed` and `failed` about the xAPI activity launched — `mastered`,
+  `experienced`, a verb of the authoring tool — moves the learner's progress through its result: `result.completion`
+  true completes the activity, a boolean `result.success` passes or fails it, and a `mastery_score` decides success
+  from its scaled score; without either, it moves nothing.
+- A state document posted to the xAPI endpoint is merged as xAPI asks of JSON documents: the posted object is kept as
+  written when there is none yet, else its properties are added to the JSON object kept, or replace those of the same
+  name, at the top level; a `POST` of anything but a JSON object, or over a document that is not one, answers `400`, and
+  the merged document is bounded to 64 KiB. A `PUT` still replaces the document whole.
+- The import of an xAPI package notes the correct responses of its questions that name a component the question does
+  not declare, from the reader of phil/elearning-packages.
+- Catalogues of courses: `Catalogues`, a public catalogue shown to everyone, visitors signed out included, and the
+  catalogues of the units of an organization, each shown to the learners the `LearnerUnits` port names for that unit;
+  courses offered at the end or before another — 1 000 a catalogue at most —, moved and withdrawn, each open to
+  self-enrollment or not, free or at a `CoursePrice`, with 10 tags at most; `browse()`, a page of 20 courses filtered
+  by words, tag and price, sorted as placed, by title, the newest first or by price, a group of equivalent courses
+  listed once in the learner's language, with where the learner stands in each — enrolled, completed or an equivalent
+  course completed, mandatory for them —; `enroll()`, self-enrollment in a free course, `EnrollmentRefused` otherwise;
+  `grantPurchase()`, the enrollment in a course paid for. `Catalogue`, `CatalogueEntry`, `CatalogueId`,
+  `CatalogueAudience`, `CatalogueSort`, `PriceFilter`, `OfferedCourse`, `CatalogueQuery`, `CataloguePage`,
+  `CatalogueItem`, the port `CatalogueRepository` and `DbalCatalogueRepository`, with the tables `phil_course_catalogue`
+  and `phil_course_catalogue_entry`; removing a course removes its entries in the catalogues.
+- `OrganizationsLearnerUnits`: with phil/organizations-bundle registered, the units of a learner and the units above
+  them from its tree of units, in each organization the learner is a member of; the option
+  `phil_courses.catalogues.units_below`, true by default, false to keep the catalogue of a unit to its own members; the
+  option `phil_courses.catalogues.learner_units` names another `LearnerUnits`.
+- The courses sold through phil/commerce-bundle, when it is registered: `CourseSellables`, the `SellableResolver` of the
+  references of type `course`, `<catalogue>/<course>`, at the price of the course in that catalogue under the tax
+  category `phil_courses.catalogues.tax_category`; `CoursePurchases`, which enrolls the customer of an order in its
+  courses at each `OrderPurchased`; the port `CourseCheckout`, named in `phil_courses.catalogues.checkout`, which sends
+  the learner to the application's cart, at an address of the site itself.
+- The pages of the catalogues, `phil_courses_catalogues`, `phil_courses_catalogue` and `phil_courses_catalogue_enroll`,
+  with the recipes `Button`, `Badge`, `Input` and `NativeSelect` of the kit, their texts `catalogue.*` in English and
+  French, and the Twig function `phil_courses_price()`.
+- The fuzz target `catalogue-query`, on the query string of a catalogue page, and the benchmark of a page of a catalogue
+  of 500 courses.
+- The documentation page catalogues.
+- The completions of the transcripts as the training source of phil/reporting-bundle, when it is registered and the
+  mandatory training enabled: `CoursesTrainingSource`, an activity for each completion of the period, its hours from
+  the credits it granted — continuing education units at `phil_courses.reporting.ceu_hours` hours each, 10 by
+  default —, its cost from the port `TrainingCosts` and `TrainingCost`, its unit from the port `TrainingUnits`; the
+  options `phil_courses.reporting.enabled`, `currency`, `ceu_hours`, `costs` and `units`; `OrganizationsTrainingUnits`,
+  the learner's unit from the tree of units of phil/organizations-bundle when it is registered;
+  `TranscriptRepository::completedBetween()`, the completions of a span of time read row by row, and the index
+  `idx_phil_course_transcript_completed` that `CourseTables::upgrade()` adds; the constant `Credits::CEU_HOURS`; the
+  documentation page training reports.
+
 ## 0.3.1-alpha - 2026-11-25
 
 ### Changed

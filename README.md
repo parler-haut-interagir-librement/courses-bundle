@@ -35,8 +35,8 @@ staying in the application's database, and an application's own store plugs into
 
 An xAPI package runs as an activity of its own: launched with the parameters xAPI packages read and a token of its
 session, it talks to the same xAPI endpoint, its statements checked — the learner of the session, the registration of
-the enrollment, no voiding — and its `completed`, `passed` and `failed` statements move the learner's progress, with a
-mastery score when it has one. Its package is imported through the reader of `tincan.xml` of phil/elearning-packages,
+the enrollment, no voiding — and its `completed`, `passed` and `failed` statements, or the completion and success the
+result of another verb reports, move the learner's progress, with a mastery score when it has one. Its package is imported through the reader of `tincan.xml` of phil/elearning-packages,
 which an application may replace.
 
 A course can be mandatory: assigned to a learner, to the members of a group or of a unit, by a due moment, each member
@@ -53,6 +53,14 @@ required courses are, with the `PathCompleted` event.
 The same training given in several languages is a group of equivalent courses, one course per language. The outline
 shows the other languages, and an address leads to the course of the learner's language. Completing one course of the
 group completes them all: for the paths, the mandatory training, the credits — granted once — and the certificates.
+
+Catalogues list the courses a learner may take: a public catalogue shown to everyone, visitors signed out included,
+and private catalogues, each shown to the members of one unit of an organization and of the units below it — with
+phil/organizations-bundle, read from its tree of units. A catalogue places its courses in an order, filters them by
+words, tag and price, sorts them by title, by date or by price, a page at a time, and lists a group of equivalent
+courses once, in the learner's language, with where the learner stands in each — enrolled, completed, mandatory for
+them. A learner enrolls themselves in a free course the catalogue opens to it; a course with a price is sold through
+phil/commerce-bundle, and its buyer is enrolled once the order is paid.
 
 Another part of the application — certificates, badges, a report — asks `Completions` whether a learner completed a
 course, and keeps its own model; with phil/certificates-bundle, the bundle answers its `CourseCompletions` port, for the
@@ -80,11 +88,13 @@ on SQLite, MySQL 8.4 and PostgreSQL 17.
 | cmi5 launches, the fetch URL, the xAPI endpoint with the rules of cmi5, the learning record store as a port | Implemented and tested |
 | The `satisfied` statements of the blocks, innermost first, and of the course, once for each enrollment, named by the course structure, with the `BlockSatisfied` event | Implemented and tested |
 | The remote xAPI learning record store through phil/safe-http, for the statements | Implemented and tested; its integration test runs against a store the environment names |
-| xAPI activities: the launch parameters of xAPI packages, the token of the session, the statements checked and kept, completion, success and score from `completed`, `passed` and `failed`, a mastery score, their records in the privacy module of cmi5 | Implemented and tested |
+| xAPI activities: the launch parameters of xAPI packages, the token of the session, the statements checked and kept, completion, success and score from `completed`, `passed` and `failed` and from the result of any other verb, a mastery score, state documents put whole or merged, their records in the privacy module of cmi5 | Implemented and tested |
 | The import of xAPI packages, through the `XapiPackageReader` port and its adapter on the reader of phil/elearning-packages | Implemented and tested |
 | Learning paths: ordered courses with prerequisites, the enrollment in the path, its completion with `PathCompleted` and through the `CourseCompletions` port of phil/certificates-bundle, its privacy module | Implemented, tested on SQLite, MySQL and PostgreSQL |
 | Groups of equivalent courses: one course per language, the course of the learner's language, the completion recognised across the group for the paths, the mandatory training and the credits | Implemented, tested on SQLite, MySQL and PostgreSQL |
 | The pages of the learning paths and of the groups of equivalent courses | Not yet: the application draws them on `LearningPaths` and `Equivalences` |
+| Catalogues: a public one and one per unit of an organization, the units of phil/organizations-bundle, courses placed in order, filters, sorts and pages, a group of equivalent courses listed once, where the learner stands, self-enrollment, and their pages with the recipes of the kit, English and French | Implemented, tested on SQLite, MySQL and PostgreSQL, and fuzzed |
+| Courses sold from a catalogue through phil/commerce-bundle: the sellables of type `course`, the buyer enrolled once the order is paid, the `CourseCheckout` port to the application's cart | Implemented and tested |
 | Mandatory training: courses assigned to a learner, a group or a unit by a due moment, reminders before, on and after it through phil/notifications-bundle and Symfony Scheduler, the overdue state on the learner's and the managers' pages | Implemented and tested |
 | Recertification through phil/recurrence: a completion renewed after a number of months, the enrollment starting again | Implemented and tested |
 | Credits in continuing education units or hours, the transcript as a page, JSON and CSV, its privacy module | Implemented and tested |
@@ -97,7 +107,7 @@ on SQLite, MySQL 8.4 and PostgreSQL 17.
 | The Flex recipe: the bundle, its configuration and its routes | Written in `recipe/0.2`, for the recipes repository of PHIL; `recipe/0.1` serves the versions 0.1 |
 | Branching lessons through phil/story-graph, quizzes through phil/assessment, access through phil/content-access | Planned, as activity types and an access port, once those libraries are written |
 | LTI 1.3 activities, hosted video with consented watch tracking | Planned, as activity types the LTI and video bundles add |
-| Cohorts with live meetings, courses sold through the catalogue, catalogues by unit, multilingual courses of translated content | Planned |
+| Cohorts with live meetings, multilingual courses of translated content | Planned |
 
 ## Documentation
 
@@ -112,9 +122,11 @@ on SQLite, MySQL 8.4 and PostgreSQL 17.
 | [xAPI activities](doc/xapi-activities.md) | xAPI packages as activities: the launch, the statements, the outcome they record, their import, privacy. |
 | [Mandatory training](doc/mandatory-training.md) | Courses assigned by a due moment, groups and units, the states, the reminders, the run and its schedule, recertification. |
 | [Credits and transcripts](doc/credits-and-transcripts.md) | The credits of the courses, the transcript as a page, JSON and CSV, and its privacy. |
+| [Training reports](doc/training-reports.md) | The completions as the training source of phil/reporting-bundle: hours and costs by organisational unit and period, the 1 % of payroll template, the costs and units the application gives. |
 | [Learning paths](doc/learning-paths.md) | Ordered courses with prerequisites, the enrollment in a path, its progress and its completion, certificates and badges, privacy. |
 | [Equivalent courses](doc/equivalent-courses.md) | One training in several languages: the groups, the course of the learner's language, the completion recognised across the group. |
-| [Security](doc/security.md) | The bounds of the archive and the manifest, the content origin and its headers, the SCORM run time, the remote store, the administration page. |
+| [Catalogues](doc/catalogues.md) | The public catalogue and those of the units, the order of the courses, filters, sorts and pages, self-enrollment, the courses sold through phil/commerce-bundle, the pages. |
+| [Security](doc/security.md) | The bounds of the archive and the manifest, the content origin and its headers, the SCORM run time, the remote store, the administration page, the catalogues. |
 | [Extension points](doc/extension-points.md) | The ports, the events, the services to replace, and when they are stable. |
 | [Testing](doc/testing.md) | The bundle's tests, the servers and the learning record store its integration tests read, and the fuzz target. |
 | [Reference](doc/reference.md) | Every class and file of the bundle. |
@@ -123,7 +135,7 @@ on SQLite, MySQL 8.4 and PostgreSQL 17.
 
 ```sh
 composer require phil/courses-bundle
-php bin/console ux:install button badge progress textarea --kit=github.com/parler-haut-interagir-librement/ux-kit
+php bin/console ux:install button badge input native-select progress textarea --kit=github.com/parler-haut-interagir-librement/ux-kit
 ```
 
 ```yaml

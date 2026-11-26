@@ -62,6 +62,17 @@ phil_courses:
         manager_role: ROLE_COURSES_MANAGER
         notifier: null
         keep_transcripts: false
+    catalogues:
+        learner_units: null
+        units_below: true
+        checkout: null
+        tax_category: standard
+    reporting:
+        enabled: true
+        currency: CAD
+        ceu_hours: 10
+        costs: null
+        units: null
     admin:
         role: ROLE_COURSES_TEACHER
     audit:
@@ -119,6 +130,15 @@ phil_courses:
 | `training.manager_role` | `ROLE_COURSES_MANAGER` | The role a manager holds to see the training of every learner and their transcripts. |
 | `training.notifier` | `null` | A `TrainingNotifier` service; the notifications of phil/notifications-bundle when null and that bundle is registered, none otherwise. |
 | `training.keep_transcripts` | `false` | Whether the transcripts survive an erasure request, under a legal obligation to keep them. |
+| `catalogues.learner_units` | `null` | A `LearnerUnits` service naming the units whose catalogues reach a learner; `OrganizationsLearnerUnits`, on the tree of units of phil/organizations-bundle, when null and that bundle is registered; none otherwise, and the learners see the public catalogues only. See [Catalogues](catalogues.md#public-and-unit-catalogues). |
+| `catalogues.units_below` | `true` | Whether the catalogue of a unit reaches the members of the units below it too: a catalogue of Sales shown to the members of its eastern branch. `false` keeps it to the unit's own members. `OrganizationsLearnerUnits` reads it; a `LearnerUnits` of the application's own answers for itself. See [Catalogues](catalogues.md#public-and-unit-catalogues). |
+| `catalogues.checkout` | `null` | A `CourseCheckout` service that adds a course sold to the learner's cart and answers where they pay; the courses with a price are shown without a form when null. See [Catalogues](catalogues.md#courses-sold-through-philcommerce-bundle). |
+| `catalogues.tax_category` | `standard` | The tax category of the courses sold through phil/commerce-bundle, which its `TaxRateResolver` reads. |
+| `reporting.enabled` | `true` | Whether the completions of the transcripts are the training source of phil/reporting-bundle, when that bundle is registered and the mandatory training enabled. See [Training reports](training-reports.md). |
+| `reporting.currency` | `CAD` | The ISO 4217 code of the currency the costs of the completions are counted in, three capital letters. |
+| `reporting.ceu_hours` | `10` | The hours of a continuing education unit, from 1 to 1000, for the courses whose credits are in such units. |
+| `reporting.costs` | `null` | A `TrainingCosts` service answering what each completion cost; every completion costs nothing when null. |
+| `reporting.units` | `null` | A `TrainingUnits` service naming the unit the training of a learner counts in; `OrganizationsTrainingUnits`, on the tree of units of phil/organizations-bundle, when null and that bundle is registered; none otherwise. |
 | `admin.role` | `ROLE_COURSES_TEACHER` | The role a teacher holds to see and decide the second chances on the administration page. |
 | `audit.enabled` | `true` | Writes the second chances — asked for, granted, refused, waived — to the trail of phil/audit-bundle, when that bundle is registered. |
 | `audit.segment` | `courses` | The segment of the trail. |
